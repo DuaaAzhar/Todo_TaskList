@@ -12,19 +12,12 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
-
-import android.renderscript.RenderScript;
-
-import android.text.Layout;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.Adapter;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.DatePicker;
 import android.widget.EditText;
 import android.widget.ImageView;
-import android.widget.ListView;
 import android.widget.RadioButton;
 import android.widget.TextView;
 import android.widget.TimePicker;
@@ -33,27 +26,53 @@ import android.widget.Toast;
 import java.util.ArrayList;
 import java.util.Calendar;
 
-public class addList extends AppCompatActivity implements ItemAdapter.ItemDel {
-
+public class ViewTask extends AppCompatActivity implements TaskViewAdapter.UpdatedList {
     final Context context = this;
-
-    ImageView ivSelectDate, ivTime, ivAddItem, ivRepeat, ivCancel;
-    TextView tvDate, tvTime;
+    ImageView ivSelectDate, ivTime, ivAddItem, ivRepeat, ivBack;
+    TextView tvDate, tvTime, tvNameView;
     private Calendar calendar;
-    private int year, month, day, hour, min;
-    RecyclerView RvList;
+    private int year, month, day, hour, min, index;
+    RecyclerView RvViewTask;
     RecyclerView.LayoutManager layoutManager;
     ArrayList<String> list=new ArrayList<>();
-    ItemAdapter adapter;
-    Button btnSave;
-    EditText etName;
+    TaskViewAdapter adapter;
+    Button btnSave,btnCancel;
     RadioButton high,medium,low;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_add_list);
+        setContentView(R.layout.activity_view_task);
         init();
+        index=getIntent().getIntExtra("index",-1);
+        list=TaskArray.tasks.get(index).getItems();
+        tvNameView.setText(TaskArray.tasks.get(index).getName());
+        tvDate.setText(TaskArray.tasks.get(index).getDate());
+        tvTime.setText(TaskArray.tasks.get(index).getTime());
+        int p=TaskArray.tasks.get(index).getPriority();
+        if(p==R.drawable.red)
+        {
+            high.setChecked(true);
+        }
+        else if(p==R.drawable.green)
+        {
+            medium.setChecked(true);
+        }
+        else if(p==R.drawable.yellow)
+        {
+            low.setChecked(true);
+        }
+        Boolean repeat=TaskArray.tasks.get(index).getRepeat();
+        if(repeat)
+        {
+            ivRepeat.setImageResource(R.drawable.repeat_);
+        }
+        else
+        {
+            ivRepeat.setImageResource(R.drawable.repeat);
+        }
+        adapter=  new TaskViewAdapter(this,list);
+        RvViewTask.setAdapter(adapter);
 
         ivSelectDate.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -67,7 +86,7 @@ public class addList extends AppCompatActivity implements ItemAdapter.ItemDel {
                 hour = calendar.get(Calendar.HOUR_OF_DAY);
                 min = calendar.get(Calendar.MINUTE);
                 // Launch Time Picker Dialog
-                TimePickerDialog timePickerDialog = new TimePickerDialog(addList.this,
+                TimePickerDialog timePickerDialog = new TimePickerDialog(ViewTask.this,
                         new TimePickerDialog.OnTimeSetListener() {
 
                             @Override
@@ -83,7 +102,6 @@ public class addList extends AppCompatActivity implements ItemAdapter.ItemDel {
         ivRepeat.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                ivRepeat.setImageResource(R.drawable.repeat_);
                 if ((Integer) ivRepeat.getTag() == R.drawable.repeat)
                 {
                     ivRepeat.setImageResource(R.drawable.repeat_);
@@ -96,7 +114,6 @@ public class addList extends AppCompatActivity implements ItemAdapter.ItemDel {
             }
         });
         ivAddItem.setOnClickListener(new View.OnClickListener() {
-
             @Override
             public void onClick(View arg0) {
 
@@ -122,7 +139,7 @@ public class addList extends AppCompatActivity implements ItemAdapter.ItemDel {
                                         // edit text
                                         String s=userInput.getText().toString();
                                         if(!s.isEmpty())
-                                        list.add(s);
+                                            list.add(s);
                                     }
                                 })
                         .setNegativeButton("Cancel",
@@ -137,21 +154,15 @@ public class addList extends AppCompatActivity implements ItemAdapter.ItemDel {
 
                 // show it
                 alertDialog.show();
-                 if(list.size()>=0)
-                 {
-                     View layimg=findViewById(R.id.layimg);
-                     layimg.setVisibility(View.GONE);
-                 }
+
             }
         });
 
         btnSave.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                String Name=etName.getText().toString().trim();
-                Toast.makeText(context, "Data Send", Toast.LENGTH_SHORT).show();
-                finish();
-                int Priority=R.drawable.yellow;
+                String Name=tvNameView.getText().toString().trim();
+                int Priority=TaskArray.tasks.get(index).getPriority();
                 if(high.isChecked())
                 {
                     Priority=R.drawable.red;
@@ -171,9 +182,7 @@ public class addList extends AppCompatActivity implements ItemAdapter.ItemDel {
                 {
                     repeat=true;
                 }
-                TaskArray.tasks.add(new Tasks(Name,Priority,date,time,repeat,list));
-                TaskAdapter taskAdapter=new TaskAdapter(context,TaskArray.tasks);
-                taskAdapter.notifyDataSetChanged();
+
                 if(checkValidation())
                 {
                     Intent intent=new Intent();
@@ -189,10 +198,18 @@ public class addList extends AppCompatActivity implements ItemAdapter.ItemDel {
                 }
             }
         });
-        ivCancel.setOnClickListener(new View.OnClickListener() {
+        btnCancel.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 setResult(RESULT_CANCELED);
+                finish();
+            }
+        });
+        ivBack.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent=new Intent(ViewTask.this,com.example.todolist_mid.MainActivity.class);
+                startActivity(intent);
                 finish();
             }
         });
@@ -200,16 +217,7 @@ public class addList extends AppCompatActivity implements ItemAdapter.ItemDel {
 
     private boolean checkValidation() {
         Boolean valid=true;
-        if(etName.getText().equals(""))
-        {
-            Toast.makeText(context, "Enter Missing Entity", Toast.LENGTH_SHORT).show();
-            valid=false;
-        }
-        if(list.isEmpty())
-        {
-            Toast.makeText(context, "Enter Missing Entity", Toast.LENGTH_SHORT).show();
-            valid=false;
-        }
+
         if(!(high.isChecked() || medium.isChecked() || low.isChecked()))
         {
             Toast.makeText(context, "Enter Missing Entity", Toast.LENGTH_SHORT).show();
@@ -227,14 +235,13 @@ public class addList extends AppCompatActivity implements ItemAdapter.ItemDel {
         }
         return valid;
 
+
     }
-
-
     private void init() {
         ivSelectDate=findViewById(R.id.ivSelectDate);
         tvDate=findViewById(R.id.tvDate);
-        tvTime=findViewById(R.id.tvTime);
         ivTime=findViewById(R.id.ivTime);
+        tvTime=findViewById(R.id.tvTime);
         ivRepeat=findViewById(R.id.ivRepeat);
         ivRepeat.setTag(R.drawable.repeat);
         calendar = Calendar.getInstance();
@@ -245,19 +252,19 @@ public class addList extends AppCompatActivity implements ItemAdapter.ItemDel {
         hour = calendar.get(Calendar.HOUR_OF_DAY);
         min = calendar.get(Calendar.MINUTE);
         ivAddItem=findViewById(R.id.ivAddItem);
-        RvList=findViewById(R.id.RvList);
-        RvList.setHasFixedSize(true);                              
+        RvViewTask=findViewById(R.id.RvViewTask);
+        RvViewTask.setHasFixedSize(true);
         layoutManager=new LinearLayoutManager(this);
-        RvList.setLayoutManager(layoutManager);
-        adapter=  new ItemAdapter(this,list);
-        RvList.setAdapter(adapter);
+        RvViewTask.setLayoutManager(layoutManager);
         btnSave=findViewById(R.id.btnSave);
-        etName=findViewById(R.id.editTextTextPersonName);
         high=findViewById(R.id.radioHigh);
         medium=findViewById(R.id.radioMedium);
         low=findViewById(R.id.radioLow);
-        ivCancel=findViewById(R.id.ivCancel);
+        btnCancel=findViewById(R.id.btnCancel);
+        tvNameView=findViewById(R.id.tvNameView);
+        ivBack=findViewById(R.id.ivBack);
     }
+
     @SuppressWarnings("deprecation")
     public void setDate(View view) {
         showDialog(999);
@@ -293,10 +300,8 @@ public class addList extends AppCompatActivity implements ItemAdapter.ItemDel {
 
 
     @Override
-    public void DelItemClick(int index) {
+    public void onClickRemove(int index) {
         list.remove(index);
         adapter.notifyDataSetChanged();
     }
 }
-
-

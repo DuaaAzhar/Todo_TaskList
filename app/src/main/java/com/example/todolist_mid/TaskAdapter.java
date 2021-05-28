@@ -40,7 +40,9 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.taskViewHolder
     public void onBindViewHolder(@NonNull taskViewHolder holder, int position) {
         holder.itemView.setTag(tasks.get(position));
         holder.tvName.setText(tasks.get(position).getName());
-        ArrayList<String> items = new ArrayList<String>(tasks.get(position).getItems().subList(0, 3));
+        ArrayList<String> items = new ArrayList<String>(tasks.get(position).getItems());
+        if(tasks.get(position).getItems().size()>=3)
+            items = new ArrayList<String>(tasks.get(position).getItems().subList(0, 3));
         String str = String.join(" ,", items);
         holder.tvItemshow.setText(str);
         holder.ivPriority.setImageResource(tasks.get(position).getPriority());
